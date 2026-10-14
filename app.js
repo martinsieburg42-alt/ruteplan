@@ -3,7 +3,7 @@
    Læser Excel/CSV, finder adresser (Nominatim/Photon), henter køretider og km ad vejene (OSRM),
    fordeler husene på arbejdsdage fra hjemadressen (solver.js – færrest km eller kortest tid),
    og skriver Excel-ruteplan + CSV. Ingen fugleflugt i planlægningen. */
-const VERSION = '2.0.6';
+const VERSION = '2.0.7';
 const $ = s => document.querySelector(s);
 const el = (t, a = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(a)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids) if (c != null) e.append(c); return e; };
 const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
@@ -486,7 +486,7 @@ function drawMap() {
   if (window.L && L.map) { try {
     if (lmap) { lmap.remove(); lmap = null; } box.innerHTML = '';
     lmap = L.map(box, { scrollWheelZoom: false });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© OpenStreetMap-bidragydere © CARTO' }).addTo(lmap);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-bidragydere' }).addTo(lmap);
     for (const d of S.days) {
       L.polyline(d.geom || [[S.home.lat, S.home.lon], ...d.items.map(x => [x.lat, x.lon]), [S.home.lat, S.home.lon]], { color: d.col[0], weight: 3, opacity: .75, dashArray: d.geom ? null : '4 6' }).bindTooltip(d.name).addTo(lmap);
       for (const x of d.items) L.circleMarker([x.lat, x.lon], { radius: 5, color: '#fff', weight: 1, fillColor: d.col[0], fillOpacity: 1 }).bindTooltip(`Dag ${d.n}, nr. ${x.dayNo}: ${x.fuld}${x.id ? ' (' + x.id + ')' : ''}`).addTo(lmap);
