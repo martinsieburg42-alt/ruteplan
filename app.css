@@ -105,3 +105,9 @@ button.big{font-size:17px;padding:12px 20px}
 td.glinks a{margin-right:10px;white-space:nowrap}
 tr.sum td{font-weight:700;border-top:2px solid var(--line)}
 td.over{color:var(--bad);font-weight:700}
+
+/* 2.2: hurtige valg over feltet til filen */
+.quick{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;margin-bottom:14px}
+.quick .q{display:flex;flex-direction:column;gap:4px;font-size:15px;font-weight:600}
+.quick .q input{width:120px;font-size:20px;padding:8px 10px;font-weight:600}
+.quick .qhint{flex:1 1 260px;margin:0;color:var(--muted);font-size:13.5px;align-self:center}

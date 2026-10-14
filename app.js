@@ -3,7 +3,7 @@
    Læser Excel/CSV, finder adresser (Nominatim/Photon), henter køretider og km ad vejene (OSRM),
    fordeler husene på arbejdsdage fra hjemadressen (solver.js – færrest km eller kortest tid),
    og skriver Excel-ruteplan + CSV. Ingen fugleflugt i planlægningen. */
-const VERSION = '2.1.1';
+const VERSION = '2.2';
 const $ = s => document.querySelector(s);
 const el = (t, a = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(a)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids) if (c != null) e.append(c); return e; };
 const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
@@ -36,7 +36,8 @@ const byStops = () => +settings.stops > 0; // planlæg efter antal huse pr. dag 
 const limitTxt = () => byStops() ? `højst ${settings.stops} huse pr. dag (timerne er vejledende)` : `højst ${fmtH(settings.hours)} timer pr. dag`;
 function showSettings() {
   for (const [id, k] of Object.entries(SET_IDS)) $('#' + id).value = settings[k];
-  $('#setSum').textContent = `Start og slut hver dag: ${settings.home || '(ikke sat)'} · ${byStops() ? settings.stops + ' huse pr. dag' : fmtH(settings.hours) + ' timer pr. dag'} · ${settings.min} min pr. hus · ${goalTxt()}`;
+  $('#setSum').textContent = `start og slut ${settings.home || '(ikke sat)'} · ${settings.min} min pr. hus · ${goalTxt()}`;
+  $('#qHint').textContent = byStops() ? `Hver dag får højst ${settings.stops} huse. ${fmtH(settings.hours)} timer er kun vejledende.` : `Tomt felt: dagene fyldes op til ${fmtH(settings.hours)} timer (kørsel + arbejde). Skriv et tal i "Huse pr. dag" for at styre efter antal huse.`;
 }
 for (const [id, k] of Object.entries(SET_IDS)) $('#' + id).addEventListener('change', () => {
   const v = String($('#' + id).value).trim();
