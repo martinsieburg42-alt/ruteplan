@@ -3,7 +3,7 @@
    Læser Excel/CSV, finder adresser (Nominatim/Photon), henter køretider og km ad vejene (OSRM),
    fordeler husene på arbejdsdage fra hjemadressen (solver.js – færrest km eller kortest tid),
    og skriver Excel-ruteplan + CSV. Ingen fugleflugt i planlægningen. */
-const VERSION = '2.0';
+const VERSION = '2.0.1';
 const $ = s => document.querySelector(s);
 const el = (t, a = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(a)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids) if (c != null) e.append(c); return e; };
 const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
@@ -381,7 +381,7 @@ async function roadMatrix(pts, onp) {
 function runSolver(C, T, opt) {
   return new Promise((ok, bad) => {
     const local = () => setTimeout(() => { try { const r = solveVRP(C, Object.assign({}, opt, { time: T })); ok({ routes: r.routes, tooLong: r.tooLong, log: r.log }); } catch (e) { bad(e); } }, 60);
-    let w = null; try { w = new Worker('solver-worker.js'); } catch (e) { w = null; }
+    let w = null; try { w = new Worker('solver-worker.js?v=' + VERSION); } catch (e) { w = null; }
     if (!w) return local();
     let heard = false;
     w.onmessage = e => { heard = true; const m = e.data; if (m.type === 'done') { w.terminate(); ok(m.res); } else if (m.type === 'error') { w.terminate(); bad(new Error(m.msg)); } };

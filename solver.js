@@ -34,11 +34,11 @@ function solveVRP(D, opt) {
     let best = drive(r), imp = true;
     while (imp) { imp = false;
       for (let i = 0; i < r.length - 1 && !imp; i++) for (let j = i + 1; j < r.length && !imp; j++) {
-        const t = r.slice(0, i).concat(r.slice(i, j + 1).reverse(), r.slice(j + 1)); const c = drive(t); if (c < best - 1e-6) { r = t; best = c; imp = true; } }
+        const t = r.slice(0, i).concat(r.slice(i, j + 1).reverse(), r.slice(j + 1)); const c = drive(t); if (c < best - 1e-6 && (ok(t) || !ok(r))) { r = t; best = c; imp = true; } }
       for (let len = 1; len <= 3 && !imp; len++) for (let i = 0; i + len <= r.length && !imp; i++) {
         const seg = r.slice(i, i + len), rest = r.slice(0, i).concat(r.slice(i + len));
         for (let p = 0; p <= rest.length && !imp; p++) { if (p === i) continue; for (const sg of len > 1 ? [seg, seg.slice().reverse()] : [seg]) {
-          const t = rest.slice(0, p).concat(sg, rest.slice(p)); const c = drive(t); if (c < best - 1e-6) { r = t; best = c; imp = true; break; } } } }
+          const t = rest.slice(0, p).concat(sg, rest.slice(p)); const c = drive(t); if (c < best - 1e-6 && (ok(t) || !ok(r))) { r = t; best = c; imp = true; break; } } } }
     }
     return r;
   }
@@ -50,7 +50,7 @@ function solveVRP(D, opt) {
       for (let a = 0; a < rs.length && !imp; a++) for (let k = 0; k < rs[a].length && !imp; k++) {
         const c = rs[a][k], A2 = rs[a].slice(0, k).concat(rs[a].slice(k + 1)), base = drive(rs[a]);
         for (let b = 0; b < rs.length && !imp; b++) { if (b === a) continue; const [p, v] = bestInsert(rs[b], c); if (p < 0) continue;
-          const delta = drive(A2) + v - base - drive(rs[b]); if (delta < -1e-6) { rs[b] = intra(rs[b].slice(0, p).concat([c], rs[b].slice(p))); rs[a] = intra(A2); imp = true; } } }
+          const delta = drive(A2) + v - base - drive(rs[b]); if (delta < -1e-6 && ok(A2)) { rs[b] = intra(rs[b].slice(0, p).concat([c], rs[b].slice(p))); rs[a] = intra(A2); imp = true; } } }
       // byt to huse mellem dage
       for (let a = 0; a < rs.length && !imp; a++) for (let b = a + 1; b < rs.length && !imp; b++) for (let i = 0; i < rs[a].length && !imp; i++) for (let j = 0; j < rs[b].length && !imp; j++) {
         const A2 = rs[a].slice(), B2 = rs[b].slice(); [A2[i], B2[j]] = [B2[j], A2[i]]; if (!ok(A2) || !ok(B2)) continue;
@@ -69,18 +69,19 @@ function solveVRP(D, opt) {
     }
     return rs;
   }
+  function repair(rs) { const out = []; for (let r of rs) { r = r.slice(); while (r.length > 1 && !ok(r)) out.push([r.pop()]); if (r.length) out.push(r); } return out; }
   function ruinRecreate(rs, frac) {
     const all = rs.flat(); const k = Math.max(2, Math.round(all.length * frac));
     const seedC = all[Math.floor(rand() * all.length)];
     const near = all.slice().sort((x, y) => D[seedC][x] - D[seedC][y]).slice(0, k); // fjern en klynge af nabohuse (målt i køretid)
-    let t = rs.map(r => r.filter(c => !near.includes(c))).filter(r => r.length);
+    let t = repair(rs.map(r => r.filter(c => !near.includes(c))).filter(r => r.length));
     for (const c of near.sort(() => rand() - .5)) { let bi = -1, bp = -1, bv = Infinity; t.forEach((r, ri) => { const [p, v] = bestInsert(r, c); if (p >= 0 && v - drive(r) < bv) { bv = v - drive(r); bi = ri; bp = p; } });
       if (bi < 0) t.push([c]); else t[bi].splice(bp, 0, c); }
     return local(t);
   }
   const t0 = Date.now(); const log = [];
   let best = null;
-  for (const lam of opt.lambdas || [0.6, 0.8, 1.0, 1.2, 1.4]) { const s = local(savings(lam)); log.push(['savings λ=' + lam, total(s), s.length]); if (!best || total(s) < total(best)) best = s; }
+  for (const lam of opt.lambdas || [0.6, 0.8, 1.0, 1.2, 1.4]) { const s = local(repair(savings(lam))); log.push(['savings λ=' + lam, total(s), s.length]); if (!best || total(s) < total(best)) best = s; }
   const startBest = total(best);
   let cur = clone(best), iters = 0;
   while (Date.now() - t0 < (opt.timeMs || 20000) && iters < (opt.maxIter || 400)) { iters++;
@@ -89,6 +90,7 @@ function solveVRP(D, opt) {
     else if (rand() < 0.05) cur = clone(best);
     if (opt.onProgress && iters % 5 === 0) opt.onProgress(iters, total(best), Date.now() - t0); }
   log.push(['ruin&recreate', total(best), best.length, iters]);
+  if (best.some(r => r.length > 1 && !ok(r))) best = local(repair(best));
   const tooLong = []; for (const r of best) if (!ok(r)) { if (r.length > 1) throw new Error('infeasible'); tooLong.push(r[0]); } // et enkelt hus, der alene er over grænsen, får sin egen dag
   const seen = new Set(best.flat()); if (seen.size !== n - 1) throw new Error('missing');
   return { routes: best, tooLong, drive: total(best), days: best.length, startBest, log, ms: Date.now() - t0, drive_of: drive, dur_of: dur };

@@ -1,5 +1,5 @@
 /* Kører solveVRP i baggrunden, så siden ikke fryser mens dagene beregnes. */
-importScripts('solver.js');
+importScripts('solver.js' + self.location.search); // samme version som siden
 onmessage = e => {
   const { C, T, opt } = e.data;
   try {
