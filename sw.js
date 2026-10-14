@@ -1,9 +1,10 @@
 /* Gør Ruteplanlæggeren installerbar som app. Altid nyeste version fra nettet først;
    den gemte kopi bruges kun, hvis der ikke er net. Adresse- og ruteopslag går aldrig gennem cachen. */
-const CACHE = 'ruteplan-2.0.3';
+const CACHE = 'ruteplan-2.0.4';
+// Ny version tager over ved næste åbning (ingen overtagelse midt i en beregning).
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))));
 });
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
