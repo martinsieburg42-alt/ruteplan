@@ -3,7 +3,7 @@
    Læser Excel/CSV, finder adresser (Nominatim/Photon), henter køretider og km ad vejene (OSRM),
    fordeler husene på arbejdsdage fra hjemadressen (solver.js – færrest km eller kortest tid),
    og skriver Excel-ruteplan + CSV. Ingen fugleflugt i planlægningen. */
-const VERSION = '2.1';
+const VERSION = '2.1.1';
 const $ = s => document.querySelector(s);
 const el = (t, a = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(a)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids) if (c != null) e.append(c); return e; };
 const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
@@ -412,7 +412,7 @@ async function planDays() {
   const tStart = Date.now();
   const tick = setInterval(() => { const f = Math.min(1, (Date.now() - tStart) / timeMs); prog(`Fordeler ${items.length} huse på dage (${goalTxt()}) … ca. ${Math.max(1, Math.ceil((timeMs - (Date.now() - tStart)) / 1000))} sek.`, 0.4 + 0.45 * f); }, 400);
   let res;
-  try { res = await runSolver(settings.goal === 'km' ? M.dist : M.dur, M.dur, { service: settings.min * 60, limit: byStops() ? null : settings.hours * 3600, maxStops: byStops() ? +settings.stops : null, softLimit: byStops() ? settings.hours * 3600 : null, softWeight: byStops() ? (settings.goal === 'km' ? 8 : 2) : 0, timeMs, maxIter: 1e6, seed: 7 }); }
+  try { res = await runSolver(settings.goal === 'km' ? M.dist : M.dur, M.dur, { service: settings.min * 60, limit: byStops() ? null : settings.hours * 3600, maxStops: byStops() ? +settings.stops : null, softLimit: byStops() ? settings.hours * 3600 : null, softWeight: byStops() ? (settings.goal === 'km' ? 8 : 2) : 0, dayCost: byStops() ? (settings.goal === 'km' ? 100000 : 5400) : 0, timeMs, maxIter: 1e6, seed: 7 }); }
   finally { clearInterval(tick); }
   S.solverLog = res.log;
   // 3) dagene i rækkefølge nord → syd, og hver dags vej hentes for at få kort og præcise etaper

@@ -10,7 +10,9 @@ function solveVRP(D, opt) {
   const dur = r => sumM(T, r) + S * r.length;
   // blød grænse: tid over softLimit tæller med som en straf (softWeight pr. sekund), så lange dage undgås, når det kan betale sig
   const SL = opt.softLimit || Infinity, SW = opt.softWeight || 0;
-  const drive = SW ? r => sumM(D, r) + SW * Math.max(0, dur(r) - SL) : r => sumM(D, r);
+  // dayCost: fast pris pr. dag, så programmet bruger så få dage som muligt (bruges når antal huse styrer)
+  const DC = opt.dayCost || 0;
+  const drive = r => r.length ? sumM(D, r) + DC + (SW ? SW * Math.max(0, dur(r) - SL) : 0) : 0;
   const ok = r => r.length <= maxStops && dur(r) <= L + 1e-6; // højst maxStops huse og højst L sekunder pr. dag
   const total = rs => rs.reduce((s, r) => s + drive(r), 0);
   const clone = rs => rs.map(r => r.slice());
