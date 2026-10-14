@@ -3,7 +3,7 @@
    Læser Excel/CSV, finder adresser (Nominatim/Photon), henter køretider og km ad vejene (OSRM),
    fordeler husene på arbejdsdage fra hjemadressen (solver.js – færrest km eller kortest tid),
    og skriver Excel-ruteplan + CSV. Ingen fugleflugt i planlægningen. */
-const VERSION = '2.0.4';
+const VERSION = '2.0.5';
 const $ = s => document.querySelector(s);
 const el = (t, a = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(a)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids) if (c != null) e.append(c); return e; };
 const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
@@ -451,7 +451,7 @@ async function planDays() {
 async function routeAndShow() {
   const btns = [$('#go4'), $('#go4top')]; btns.forEach(b => { b.disabled = true; b.textContent = 'Planlægger …'; });
   step(3); $('#s3title').textContent = 'Planlægger dagene ad vejene …'; $('#s3lead').textContent = 'Lad vinduet være åbent. Det tager typisk under 1 minut.'; $('#fix').hidden = true; $('#stop').hidden = true; $('#log').textContent = ''; prog('Starter …', 0);
-  try { await planDays(); renderResult(); step(5); }
+  try { await planDays(); step(5); renderResult(); } // kortet skal tegnes, mens siden er synlig
   catch (e) { console.error(e); step(4); if (!$('#issues').children.length) { $('#s4title').textContent = 'Ruten kunne ikke beregnes'; $('#s4lead').textContent = ''; } $('#issues').prepend(el('div', { class: 'err', text: (e.message || String(e)) })); }
   btns.forEach(b => { b.disabled = false; }); $('#go4').textContent = 'Fortsæt'; $('#go4top').textContent = 'Fortsæt uden at rette';
 }
