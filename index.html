@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="app.css?v=2.4">
+<link rel="stylesheet" href="app.css?v=2.4.1">
 </head>
 <body>
 <div class="wrap">
@@ -69,7 +69,7 @@
   <div class="tiles" id="tiles"></div>
   <div class="next">
     <div class="nstep"><span class="stepnum">1</span><div><b>Hent ruteplanen</b><button class="primary big" id="dlx">Hent ruteplan (Excel)</button></div></div>
-    <div class="nstep"><span class="stepnum">2</span><div><b>Læg den ind på telefonsiden</b><p class="muted" style="margin:2px 0 8px">Åbn telefonsiden, tryk "For planlæggeren" nederst, og vælg filen du lige hentede.</p><a class="btnlink" id="openPhone" target="_blank" rel="noopener" hidden>Åbn telefonsiden</a></div></div>
+    <div class="nstep"><span class="stepnum">2</span><div><b>Læg den ind på telefonsiden</b><p class="muted" style="margin:2px 0 8px"><b>Telefonsiden viser den gamle rute, indtil du gør dette:</b> åbn telefonsiden, rul ned og tryk "For planlæggeren: læg en ny rute ind", og vælg filen du lige hentede (Ruteplan_….xlsx i Overførsler).</p><a class="btnlink" id="openPhone" target="_blank" rel="noopener" hidden>Åbn telefonsiden</a></div></div>
   </div>
   <div id="map" role="img" aria-label="Kort over dagene"></div>
   <div class="tablewrap"><table id="blocks"></table></div>
@@ -78,11 +78,11 @@
   </details>
   <div class="row" style="margin-top:16px"><button id="restart">Lav en ny rute</button></div>
 </section>
-<footer>Ruteplanlægger 2.4 · oktober 2026. Kortdata © OpenStreetMap-bidragydere. Adresseopslag: Nominatim og Photon. Køretider og km ad vejene: OSRM. Køretider er estimater uden trafik og færge-ventetid. Excel-filen bliver på din computer.</footer>
+<footer>Ruteplanlægger 2.4.1 · oktober 2026. Kortdata © OpenStreetMap-bidragydere. Adresseopslag: Nominatim og Photon. Køretider og km ad vejene: OSRM. Køretider er estimater uden trafik og færge-ventetid. Excel-filen bliver på din computer.</footer>
 </div>
 <script src="vendor/jszip.min.js"></script>
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="solver.js?v=2.4"></script>
-<script src="app.js?v=2.4"></script>
+<script src="solver.js?v=2.4.1"></script>
+<script src="app.js?v=2.4.1"></script>
 </body>
 </html>

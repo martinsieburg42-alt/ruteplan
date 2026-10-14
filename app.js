@@ -3,7 +3,7 @@
    Læser Excel/CSV, finder adresser (Nominatim/Photon), henter køretider og km ad vejene (OSRM),
    fordeler husene på arbejdsdage fra hjemadressen (solver.js – færrest km eller kortest tid),
    og skriver Excel-ruteplan + CSV. Ingen fugleflugt i planlægningen. */
-const VERSION = '2.4';
+const VERSION = '2.4.1';
 const $ = s => document.querySelector(s);
 const el = (t, a = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(a)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids) if (c != null) e.append(c); return e; };
 const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
