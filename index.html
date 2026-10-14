@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="app.css?v=2.4.1">
+<link rel="stylesheet" href="app.css?v=3.0">
 </head>
 <body>
 <div class="wrap">
@@ -20,6 +20,7 @@
 <ol class="steps" id="steps"><li data-s="1" class="on">1 · Vælg fil</li><li data-s="3">2 · Adresser og dage</li><li data-s="5">3 · Færdig</li></ol>
 
 <section class="card" id="s1">
+  <div id="lastPlan"></div>
   <div class="quick" role="group" aria-label="Arbejdsdagen">
     <label class="q" for="optStops"><span>Huse pr. dag</span><input type="number" id="optStops" min="1" max="100" step="1" inputmode="numeric" placeholder="tom"></label>
     <label class="q" for="optHours"><span>Timer pr. dag</span><input type="number" id="optHours" min="1" max="16" step="0.5" inputmode="decimal"></label>
@@ -33,7 +34,6 @@
       <label class="f" for="optHome">Hjemadresse<input type="text" id="optHome" placeholder="fx Torvet, 6700 Esbjerg"><small>Hver dag starter og slutter her.</small></label>
       <label class="f" for="optMin">Minutter pr. hus<input type="number" id="optMin" min="0" max="240"><small>Den tid du bruger ved hvert hus.</small></label>
       <label class="f" for="optGoal">Planlæg efter<select id="optGoal"><option value="km">Færrest kilometer</option><option value="tid">Kortest køretid</option></select><small>Begge regnes ad vejene. Færrest km sparer brændstof.</small></label>
-      <label class="f" for="optPhone">Link til telefonsiden<input type="text" id="optPhone" placeholder="https://claude.ai/artifact/…"><small>Giver en knap direkte til telefonsiden, når ruten er klar.</small></label>
       <label class="f" for="optMail">Din e-mail til kortopslag (valgfri)<input type="email" id="optMail" placeholder="navn@eksempel.dk"><small>OpenStreetMap beder om en kontakt ved mange opslag.</small></label>
     </div>
   </details>
@@ -68,8 +68,8 @@
   <div id="s5notes"></div>
   <div class="tiles" id="tiles"></div>
   <div class="next">
-    <div class="nstep"><span class="stepnum">1</span><div><b>Hent ruteplanen</b><button class="primary big" id="dlx">Hent ruteplan (Excel)</button></div></div>
-    <div class="nstep"><span class="stepnum">2</span><div><b>Læg den ind på telefonsiden</b><p class="muted" style="margin:2px 0 8px"><b>Telefonsiden viser den gamle rute, indtil du gør dette:</b> åbn telefonsiden, rul ned og tryk "For planlæggeren: læg en ny rute ind", og vælg filen du lige hentede (Ruteplan_….xlsx i Overførsler).</p><a class="btnlink" id="openPhone" target="_blank" rel="noopener" hidden>Åbn telefonsiden</a></div></div>
+    <div class="nstep"><span class="stepnum">1</span><div><b>Send ruten til telefonen</b><p class="muted" style="margin:2px 0 8px">Den, der får linket, trykker på det på sin telefon. Så ligger ruten der – uden login og uden at installere noget.</p><div id="shareBox"></div></div></div>
+    <div class="nstep"><span class="stepnum">2</span><div><b>Hent ruteplanen til dig selv (valgfri)</b><p class="muted" style="margin:2px 0 8px">Excel med oversigt pr. dag, alle adresser og Google Maps-links – fx til at printe.</p><button class="big" id="dlx">Hent ruteplan (Excel)</button></div></div>
   </div>
   <div id="map" role="img" aria-label="Kort over dagene"></div>
   <div class="tablewrap"><table id="blocks"></table></div>
@@ -78,11 +78,13 @@
   </details>
   <div class="row" style="margin-top:16px"><button id="restart">Lav en ny rute</button></div>
 </section>
-<footer>Ruteplanlægger 2.4.1 · oktober 2026. Kortdata © OpenStreetMap-bidragydere. Adresseopslag: Nominatim og Photon. Køretider og km ad vejene: OSRM. Køretider er estimater uden trafik og færge-ventetid. Excel-filen bliver på din computer.</footer>
+<footer>Ruteplanlægger 3.0 · oktober 2026. Kortdata © OpenStreetMap-bidragydere. Adresseopslag: Nominatim og Photon. Køretider og km ad vejene: OSRM. Køretider er estimater uden trafik og færge-ventetid. Excel-filen bliver på din computer.</footer>
 </div>
 <script src="vendor/jszip.min.js"></script>
+<script src="vendor/pako.min.js"></script>
+<script src="plan-link.js?v=3.0"></script>
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="solver.js?v=2.4.1"></script>
-<script src="app.js?v=2.4.1"></script>
+<script src="solver.js?v=3.0"></script>
+<script src="app.js?v=3.0"></script>
 </body>
 </html>

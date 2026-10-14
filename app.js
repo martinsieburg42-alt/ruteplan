@@ -3,7 +3,7 @@
    Læser Excel/CSV, finder adresser (Nominatim/Photon), henter køretider og km ad vejene (OSRM),
    fordeler husene på arbejdsdage fra hjemadressen (solver.js – færrest km eller kortest tid),
    og skriver Excel-ruteplan + CSV. Ingen fugleflugt i planlægningen. */
-const VERSION = '2.4.1';
+const VERSION = '3.0';
 const $ = s => document.querySelector(s);
 const el = (t, a = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(a)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids) if (c != null) e.append(c); return e; };
 const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
@@ -31,7 +31,7 @@ const t1 = v => (+v).toLocaleString('da-DK', { minimumFractionDigits: 1, maximum
 const t0d = v => Math.round(+v).toLocaleString('da-DK');
 const fmtH = h => String(h).replace('.', ',');
 const goalTxt = () => settings.goal === 'km' ? 'færrest km' : 'kortest køretid';
-const SET_IDS = { optHome: 'home', optStops: 'stops', optHours: 'hours', optMin: 'min', optGoal: 'goal', optPhone: 'phone', optMail: 'mail' };
+const SET_IDS = { optHome: 'home', optStops: 'stops', optHours: 'hours', optMin: 'min', optGoal: 'goal', optMail: 'mail' };
 const byStops = () => +settings.stops > 0; // planlæg efter antal huse pr. dag – timerne er så kun vejledende
 const limitTxt = () => byStops() ? `højst ${settings.stops} huse pr. dag (timerne er vejledende)` : `højst ${fmtH(settings.hours)} timer pr. dag`;
 function showSettings() {
@@ -460,6 +460,52 @@ async function routeAndShow() {
 }
 $('#go4').addEventListener('click', routeAndShow); $('#go4top').addEventListener('click', routeAndShow);
 
+/* ------------------------------------------------------------ send til telefonen
+   Hele ruten pakkes ind i et link til telefon.html (plan-link.js). Ingen server og ingen login:
+   den der trykker på linket, får ruten gemt på sin telefon. */
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+function planTitle() { return (S.planTitle || S.info[0] || stem()).slice(0, 80); }
+function makePlanLink() {
+  const days = S.days.map(d => [d.name, Math.round(d.km), Math.round(d.drive)]);
+  const stops = S.order.map(x => { const approx = !(x.acc === 'h' || x.acc === 'n');
+    const r = [S.days.findIndex(d => d.code === x.day), x.fuld, x.id || '', x.area || x.sheet || '', x.agreed || '', x.note || '', approx ? +x.lat.toFixed(5) : null, approx ? +x.lon.toFixed(5) : null];
+    while (r.length > 2 && (r[r.length - 1] === '' || r[r.length - 1] == null)) r.pop(); return r; });
+  const made = new Date().toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' });
+  S.plan = { v: 1, id: 'p' + Date.now().toString(36), t: planTitle(), m: made, h: settings.home, u: 'dag', d: days, s: stops };
+  S.link = new URL('telefon.html', location.href).href + '#' + PlanLink.encode(S.plan);
+  LS.set('rp-last', { link: S.link, t: S.plan.t, m: made, n: stops.length, days: days.length, km: Math.round(S.days.reduce((a, d) => a + d.km, 0)) });
+}
+function shareBox(last) {
+  const get = () => last ? last.link : S.link, title = () => last ? last.t : planTitle();
+  const msg = el('div', { class: 'muted', style: 'font-size:13.5px;margin-top:8px' });
+  const text = () => `Hej! Her er din kørselsrute (${title()}). Tryk på linket – så ligger ruten på din telefon:\n${get()}`;
+  const box = el('div', { class: 'share' });
+  if (!last) {
+    const inp = el('input', { type: 'text', value: planTitle(), 'aria-label': 'Navn på ruten' });
+    inp.addEventListener('change', () => { S.planTitle = inp.value.trim() || ''; makePlanLink(); renderLastPlan(); msg.textContent = 'Navnet er rettet i linket.'; });
+    box.append(el('label', { class: 'f', style: 'max-width:420px;margin-bottom:10px' }, 'Navn på ruten (står øverst på telefonen)', inp));
+  }
+  const btns = el('div', { class: 'row' });
+  if (navigator.share) btns.append(el('button', { class: 'primary big', text: 'Send …', onclick: async () => { try { await navigator.share({ title: 'Kørselsrute', text: text().split('\n')[0], url: get() }); msg.textContent = 'Sendt.'; } catch (e) { } } }));
+  btns.append(el('button', { class: navigator.share ? 'big' : 'primary big', text: 'Kopiér link', onclick: async () => {
+    try { await navigator.clipboard.writeText(get()); msg.textContent = 'Linket er kopieret. Sæt det ind i en SMS, mail eller Messenger (Ctrl+V).'; }
+    catch (e) { const ta = el('textarea', { style: 'width:100%;height:80px;margin-top:8px' }); ta.value = get(); msg.replaceChildren('Kopiér linket herunder (markér alt og Ctrl+C):', ta); ta.select(); } } }));
+  if (isMobile) btns.append(el('a', { class: 'btnlink', href: 'sms:?&body=' + encodeURIComponent(text()), text: 'Send SMS' }));
+  btns.append(el('a', { class: 'btnlink', href: 'mailto:?subject=' + encodeURIComponent('Kørselsrute: ' + title()) + '&body=' + encodeURIComponent(text()), text: 'Send mail' }));
+  box.append(btns);
+  box.append(el('p', { class: 'muted', style: 'font-size:13px;margin:10px 0 0' }, 'Virker på iPhone og Android. Linket er langt, fordi hele ruten er gemt i det – sørg for at hele linket kommer med. ', el('a', { href: get(), target: '_blank', rel: 'noopener', text: 'Se telefonvisningen' })));
+  box.append(msg);
+  return box;
+}
+function renderLastPlan() {
+  const box = $('#lastPlan'); if (!box) return; const L = LS.get('rp-last', null); box.innerHTML = ''; if (!L || !L.link) return;
+  const inner = el('div', { class: 'lastplan' }, el('div', {}, el('b', { text: 'Seneste rute: ' }), `${L.t} · ${L.n} huse på ${L.days} dage · ca. ${L.km} km · lavet ${L.m}`));
+  const panel = el('div', { hidden: true, style: 'margin-top:10px' });
+  inner.append(el('div', { class: 'row', style: 'margin-top:8px' }, el('button', { class: 'small', text: 'Send til telefonen igen', onclick: () => { panel.hidden = !panel.hidden; if (!panel.children.length) panel.append(shareBox(L)); } }), el('a', { href: L.link, target: '_blank', rel: 'noopener', text: 'Se telefonvisningen', style: 'font-size:13.5px' })), panel);
+  box.append(inner);
+}
+renderLastPlan();
+
 /* ------------------------------------------------------------ resultat */
 function renderResult() {
   const D = S.days, n = S.order.length;
@@ -480,7 +526,7 @@ function renderResult() {
     tb.append(el('tr', {}, el('td', {}, el('span', { class: 'dot', style: `background:${d.col[0]}` }), String(d.n)), el('td', { text: d.areas }), el('td', { class: 'num', text: d.items.length }), el('td', { class: 'num', text: t0d(d.km) }), el('td', { class: 'num', text: t1(d.drive / 60) + ' t' }), el('td', { class: 'num', text: t1(d.work / 60) + ' t' }), el('td', { class: 'num' + (d.over ? ' over' : ''), text: t1(d.total / 60) + ' t' }), links));
   }
   tb.append(el('tr', { class: 'sum' }, el('td', { text: 'I alt' }), el('td'), el('td', { class: 'num', text: n }), el('td', { class: 'num', text: t0d(kmAll) }), el('td', { class: 'num', text: t1(drive / 60) + ' t' }), el('td', { class: 'num', text: t1(work / 60) + ' t' }), el('td', { class: 'num', text: t1((drive + work) / 60) + ' t' }), el('td')));
-  const ph = $('#openPhone'); if (/^https?:\/\//.test(settings.phone)) { ph.href = settings.phone; ph.hidden = false; } else ph.hidden = true;
+  makePlanLink(); $('#shareBox').replaceChildren(shareBox()); renderLastPlan();
   drawMap();
 }
 let lmap = null;

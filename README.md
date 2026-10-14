@@ -4,7 +4,8 @@
 
 1. Træk Excel-filen med adresserne ind (eller klik og vælg den).
 2. Programmet finder adresserne på kortet og fordeler husene på arbejdsdage.
-3. Hent ruteplanen (Excel) og læg den på telefonsiden.
+3. Tryk **Kopiér link** (eller **Send …**) og send linket til den, der skal køre. Når de trykker på linket på telefonen, ligger ruten der – uden login.
+4. Hent evt. ruteplanen som Excel til dig selv.
 
 Under **Indstillinger** på forsiden kan du ændre hjemadresse, timer pr. dag, minutter pr. hus og om der planlægges efter færrest km eller kortest køretid. Indstillingerne huskes på computeren.
 
@@ -27,5 +28,7 @@ Under **Indstillinger** på forsiden kan du ændre hjemadresse, timer pr. dag, m
 | `app.js` | Indlæsning af Excel/CSV, adresseopslag, planlægning, kort, Excel-output |
 | `solver.js` | Optimering af dage (regnes i små bidder, så siden ikke fryser) |
 | `app.css` | Udseende |
+| `telefon.html`, `telefon.js`, `telefon.css` | Telefonvisningen: ruten kommer i linket og gemmes på telefonen |
+| `plan-link.js`, `vendor/pako*.min.js` | Pakker ruten ind i linket (pako 1.0.11, MIT) |
 | `vendor/jszip.min.js` | JSZip 3.10.1 (MIT) til at læse og skrive Excel |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Gør siden installerbar som app |
