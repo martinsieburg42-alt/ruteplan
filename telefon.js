@@ -70,7 +70,7 @@ function render() {
 function renderHome() {
   var total = STOPS.length, n = STOPS.filter(function (s) { return done.has(s.n); }).length, next = nextUndone(null);
   var h = (err ? '<div class="note">' + esc(err) + ' Du ser den rute, der var gemt i forvejen.</div>' : '') +
-    '<h1>' + esc(P.t) + '</h1><p class="muted">' + total + ' huse på ' + DAYS.length + ' dage · lavet ' + esc(P.m) + '</p>';
+    '<h1>' + esc(P.t) + '</h1><p class="muted">' + total + ' huse på ' + DAYS.length + (DAYS.length === 1 ? ' dag' : ' dage') + ' · lavet ' + esc(P.m) + '</p>';
   h += '<div class="progress" aria-hidden="true"><i style="width:' + (total ? Math.round(n / total * 100) : 0) + '%"></i></div><p><b>' + n + ' af ' + total + '</b> huse er færdige.</p>';
   if (next) h += '<button class="btn go" id="cont">Fortsæt: ' + esc(next.v) + '</button>';
   else h += '<div class="card"><div class="celebrate">✓</div><h2>Alle huse er færdige</h2></div>';

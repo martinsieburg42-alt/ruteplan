@@ -3,7 +3,7 @@
    Læser Excel/CSV, finder adresser (Nominatim/Photon), henter køretider og km ad vejene (OSRM),
    fordeler husene på arbejdsdage fra hjemadressen (solver.js – færrest km eller kortest tid),
    og skriver Excel-ruteplan + CSV. Ingen fugleflugt i planlægningen. */
-const VERSION = '3.0';
+const VERSION = '3.0.1';
 const $ = s => document.querySelector(s);
 const el = (t, a = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(a)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids) if (c != null) e.append(c); return e; };
 const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
@@ -499,7 +499,7 @@ function shareBox(last) {
 }
 function renderLastPlan() {
   const box = $('#lastPlan'); if (!box) return; const L = LS.get('rp-last', null); box.innerHTML = ''; if (!L || !L.link) return;
-  const inner = el('div', { class: 'lastplan' }, el('div', {}, el('b', { text: 'Seneste rute: ' }), `${L.t} · ${L.n} huse på ${L.days} dage · ca. ${L.km} km · lavet ${L.m}`));
+  const inner = el('div', { class: 'lastplan' }, el('div', {}, el('b', { text: 'Seneste rute: ' }), `${L.t} · ${L.n} huse på ${L.days} ${L.days === 1 ? 'dag' : 'dage'} · ca. ${L.km} km · lavet ${L.m}`));
   const panel = el('div', { hidden: true, style: 'margin-top:10px' });
   inner.append(el('div', { class: 'row', style: 'margin-top:8px' }, el('button', { class: 'small', text: 'Send til telefonen igen', onclick: () => { panel.hidden = !panel.hidden; if (!panel.children.length) panel.append(shareBox(L)); } }), el('a', { href: L.link, target: '_blank', rel: 'noopener', text: 'Se telefonvisningen', style: 'font-size:13.5px' })), panel);
   box.append(inner);
@@ -511,7 +511,7 @@ function renderResult() {
   const D = S.days, n = S.order.length;
   const kmAll = D.reduce((s, d) => s + d.km, 0), drive = D.reduce((s, d) => s + d.drive, 0), work = n * settings.min;
   const excl = S.items.filter(x => x.excluded || x.acc === 'x').length;
-  $('#s5lead').textContent = `${n} huse fordelt på ${D.length} arbejdsdage. Hver dag starter og slutter ved ${settings.home}. Planlagt efter ${goalTxt()} ad vejene, ${limitTxt()}.` + (excl ? ` ${excl} er ikke med (udeladt eller ikke fundet).` : '');
+  $('#s5lead').textContent = `${n} huse fordelt på ${D.length} ${D.length === 1 ? 'arbejdsdag' : 'arbejdsdage'}. Hver dag starter og slutter ved ${settings.home}. Planlagt efter ${goalTxt()} ad vejene, ${limitTxt()}.` + (excl ? ` ${excl} er ikke med (udeladt eller ikke fundet).` : '');
   const notes = $('#s5notes'); notes.innerHTML = '';
   if (S.routeNote) notes.append(el('div', { class: 'note', text: S.routeNote.trim() }));
   const over = D.filter(d => d.over);
@@ -627,7 +627,7 @@ function buildExcel() {
   const ov = new Sheet('Oversigt'); const base = st.get({}); const bold = st.get({ b: 1 });
   ov.cols = [7, 44, 8, 40, 12, 10, 11, 10, 8, 9];
   ov.set(0, 0, 'Ruteplan – ' + (S.info[0] || S.file), st.get({ b: 1, sz: 14, color: T }));
-  ov.set(1, 0, `${ord.length} ejendomme fordelt på ${D.length} arbejdsdage. Hver dag starter og slutter ved hjemadressen. Planlagt efter ${goalTxt()} ad vejene, ${byStops() ? limitTxt() : limitTxt() + ' (kørsel + arbejde)'}.`, st.get({ i: 1 }));
+  ov.set(1, 0, `${ord.length} ejendomme fordelt på ${D.length} ${D.length === 1 ? 'arbejdsdag' : 'arbejdsdage'}. Hver dag starter og slutter ved hjemadressen. Planlagt efter ${goalTxt()} ad vejene, ${byStops() ? limitTxt() : limitTxt() + ' (kørsel + arbejde)'}.`, st.get({ i: 1 }));
   ov.set(3, 1, 'Minutter arbejde pr. hus:', st.get({ b: 1, h: 'right' })); ov.set(3, 2, settings.min, st.get({ b: 1, color: '0000FF', fill: 'FFFF00' })); ov.set(3, 3, '← ret selv (bruges til tidsestimatet)', st.get({ i: 1, sz: 9, color: '666666' }));
   ov.set(4, 1, 'Hjemadresse:', st.get({ b: 1, h: 'right' })); ov.set(4, 2, settings.home, base);
   const r0 = 6; ['Dag', 'Områder', 'Huse', 'Postnumre', 'Km (inkl. til og fra hjem)', 'Køretid (min)', 'Arbejdstid (min)', 'I alt (timer)', 'Udført', 'Mangler'].forEach((c, j) => ov.set(r0, j, c, H)); ov.heights[r0] = 30;
