@@ -119,7 +119,7 @@ function createSolver(D, opt) {
 function solveVRP(D, opt) { const s = createSolver(D, opt); while (s.initStep()); s.run(opt.timeMs || 20000); return s.finish(); }
 // Samme beregning i små bidder med pauser imellem, så browseren kan tegne og reagere undervejs.
 async function solveVRPAsync(D, opt, onTick) {
-  const s = createSolver(D, opt); const pause = () => new Promise(r => setTimeout(r, 0));
+  const s = createSolver(D, opt); const pause = () => new Promise(r => setTimeout(r, 15)); // små pauser, så computeren ikke kører på fuld kraft i lang tid
   await pause(); while (s.initStep()) { onTick && onTick(s.elapsed()); await pause(); }
   while (s.run(50)) { onTick && onTick(s.elapsed()); await pause(); }
   return s.finish();

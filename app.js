@@ -3,7 +3,7 @@
    Læser Excel/CSV, finder adresser (Nominatim/Photon), henter køretider og km ad vejene (OSRM),
    fordeler husene på arbejdsdage fra hjemadressen (solver.js – færrest km eller kortest tid),
    og skriver Excel-ruteplan + CSV. Ingen fugleflugt i planlægningen. */
-const VERSION = '2.3';
+const VERSION = '2.4';
 const $ = s => document.querySelector(s);
 const el = (t, a = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(a)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids) if (c != null) e.append(c); return e; };
 const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
@@ -400,14 +400,20 @@ async function planDays() {
   S.home = home;
   const pts = [home, ...items];
   // 1) køretider og km ad vejene mellem alle huse
-  const M = await roadMatrix(pts, (k, n) => prog(`Henter køretider og km ad vejene … ${k} af ${n}`, 0.04 + 0.36 * k / n));
+  // afstandene gemmes på computeren, så en ny beregning med de samme huse ikke skal hente dem igen
+  const mKey = pts.map(p => p.lat.toFixed(5) + ',' + p.lon.toFixed(5)).join(';');
+  let M = null; try { const c = JSON.parse(localStorage.getItem('rp-mx-v1') || 'null'); if (c && c.key === mKey) { M = { dur: c.dur, dist: c.dist, est: c.est || 0 }; prog('Bruger gemte køretider og km …', 0.4); } } catch (e) { }
+  if (!M) {
+    M = await roadMatrix(pts, (k, n) => prog(`Henter køretider og km ad vejene … ${k} af ${n}`, 0.04 + 0.36 * k / n));
+    if (!M.est) try { const r = a => a.map(row => row.map(v => Math.round(v))); localStorage.setItem('rp-mx-v1', JSON.stringify({ key: mKey, dur: r(M.dur), dist: r(M.dist) })); } catch (e) { }
+  }
   if (M.est) S.routeNote += `${M.est} af ${pts.length * (pts.length - 1)} afstande kunne ikke hentes fra ruteserveren og er anslået. `;
   // 2) fordel på dage
-  const timeMs = Math.round(Math.min(8000, Math.max(3000, 2000 + items.length * 40))); // forbedringen flader ud efter få sekunder (målt: 176 huse er færdige efter ca. 5 sek.)
+  const timeMs = Math.round(Math.min(3000, 1000 + items.length * 10)); // målt: længere søgning giver under 0,2 % mindre kørsel // forbedringen flader ud efter få sekunder (målt: 176 huse er færdige efter ca. 5 sek.)
   const tick = el => { const f = Math.min(1, el / timeMs); prog(`Fordeler ${items.length} huse på dage (${goalTxt()}) … ca. ${Math.max(1, Math.ceil((timeMs - el) / 1000))} sek.`, 0.4 + 0.45 * f); };
   tick(0);
   let res;
-  try { res = await runSolver(settings.goal === 'km' ? M.dist : M.dur, M.dur, { service: settings.min * 60, limit: byStops() ? null : settings.hours * 3600, maxStops: byStops() ? +settings.stops : null, softLimit: byStops() ? settings.hours * 3600 : null, softWeight: byStops() ? (settings.goal === 'km' ? 8 : 2) : 0, dayCost: byStops() ? (settings.goal === 'km' ? 100000 : 5400) : 0, timeMs, maxIter: 1e6, seed: 7 }, tick); }
+  try { res = await runSolver(settings.goal === 'km' ? M.dist : M.dur, M.dur, { service: settings.min * 60, limit: byStops() ? null : settings.hours * 3600, maxStops: byStops() ? +settings.stops : null, softLimit: byStops() ? settings.hours * 3600 : null, softWeight: byStops() ? (settings.goal === 'km' ? 8 : 2) : 0, dayCost: byStops() ? (settings.goal === 'km' ? 100000 : 5400) : 0, timeMs, maxIter: 1e6, seed: 7, lambdas: [0.8, 1.0, 1.2] }, tick); }
   catch (e) { throw new Error('Beregningen af dagene fejlede (' + (e.message || e) + ').'); }
   S.solverLog = res.log;
   // 3) dagene i rækkefølge nord → syd, og hver dags vej hentes for at få kort og præcise etaper
@@ -447,7 +453,7 @@ async function planDays() {
 }
 async function routeAndShow() {
   const btns = [$('#go4'), $('#go4top')]; btns.forEach(b => { b.disabled = true; b.textContent = 'Planlægger …'; });
-  step(3); $('#s3title').textContent = 'Planlægger dagene ad vejene …'; $('#s3lead').textContent = 'Lad vinduet være åbent. Det tager typisk under 1 minut.'; $('#fix').hidden = true; $('#stop').hidden = true; $('#log').textContent = ''; prog('Starter …', 0);
+  step(3); $('#s3title').textContent = 'Planlægger dagene ad vejene …'; $('#s3lead').textContent = 'Lad vinduet være åbent. Det tager typisk under 1 minut. Går siden ned, så tryk Genindlæs og vælg filen igen – adresser og afstande er gemt, så anden gang går hurtigt.'; $('#fix').hidden = true; $('#stop').hidden = true; $('#log').textContent = ''; prog('Starter …', 0);
   try { await planDays(); step(5); renderResult(); } // kortet skal tegnes, mens siden er synlig
   catch (e) { console.error(e); step(4); if (!$('#issues').children.length) { $('#s4title').textContent = 'Ruten kunne ikke beregnes'; $('#s4lead').textContent = ''; } $('#issues').prepend(el('div', { class: 'err', text: (e.message || String(e)) })); }
   btns.forEach(b => { b.disabled = false; }); $('#go4').textContent = 'Fortsæt'; $('#go4top').textContent = 'Fortsæt uden at rette';
