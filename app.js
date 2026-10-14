@@ -3,7 +3,7 @@
    Læser Excel/CSV, finder adresser (Nominatim/Photon), henter køretider og km ad vejene (OSRM),
    fordeler husene på arbejdsdage fra hjemadressen (solver.js – færrest km eller kortest tid),
    og skriver Excel-ruteplan + CSV. Ingen fugleflugt i planlægningen. */
-const VERSION = '2.0.1';
+const VERSION = '2.0.2';
 const $ = s => document.querySelector(s);
 const el = (t, a = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(a)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids) if (c != null) e.append(c); return e; };
 const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
@@ -406,7 +406,7 @@ async function planDays() {
   const M = await roadMatrix(pts, (k, n) => prog(`Henter køretider og km ad vejene … ${k} af ${n}`, 0.04 + 0.36 * k / n));
   if (M.est) S.routeNote += `${M.est} af ${pts.length * (pts.length - 1)} afstande kunne ikke hentes fra ruteserveren og er anslået. `;
   // 2) fordel på dage
-  const timeMs = Math.round(Math.min(45000, Math.max(3000, 2000 + items.length * 220)));
+  const timeMs = Math.round(Math.min(20000, Math.max(3000, 2000 + items.length * 80))); // forbedringen flader ud efter få sekunder (målt: 176 huse er færdige efter ca. 5 sek.)
   const tStart = Date.now();
   const tick = setInterval(() => { const f = Math.min(1, (Date.now() - tStart) / timeMs); prog(`Fordeler ${items.length} huse på dage (${goalTxt()}) … ca. ${Math.max(1, Math.ceil((timeMs - (Date.now() - tStart)) / 1000))} sek.`, 0.4 + 0.45 * f); }, 400);
   let res;
@@ -450,7 +450,7 @@ async function planDays() {
 }
 async function routeAndShow() {
   const btns = [$('#go4'), $('#go4top')]; btns.forEach(b => { b.disabled = true; b.textContent = 'Planlægger …'; });
-  step(3); $('#s3title').textContent = 'Planlægger dagene ad vejene …'; $('#s3lead').textContent = 'Lad vinduet være åbent. Det tager typisk 1–2 minutter.'; $('#fix').hidden = true; $('#stop').hidden = true; $('#log').textContent = ''; prog('Starter …', 0);
+  step(3); $('#s3title').textContent = 'Planlægger dagene ad vejene …'; $('#s3lead').textContent = 'Lad vinduet være åbent. Det tager typisk under 1 minut.'; $('#fix').hidden = true; $('#stop').hidden = true; $('#log').textContent = ''; prog('Starter …', 0);
   try { await planDays(); renderResult(); step(5); }
   catch (e) { console.error(e); step(4); if (!$('#issues').children.length) { $('#s4title').textContent = 'Ruten kunne ikke beregnes'; $('#s4lead').textContent = ''; } $('#issues').prepend(el('div', { class: 'err', text: (e.message || String(e)) })); }
   btns.forEach(b => { b.disabled = false; }); $('#go4').textContent = 'Fortsæt'; $('#go4top').textContent = 'Fortsæt uden at rette';
