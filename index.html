@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ruteplanlægger</title>
+<meta name="description" content="Træk en Excel-fil med adresser ind og få dem fordelt på arbejdsdage ad vejene.">
+<meta name="theme-color" content="#1F4E5F">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="wrap">
+<header class="top"><h1>Ruteplanlægger</h1><span class="sub">Træk Excel-filen med adresserne ind. Programmet fordeler husene på arbejdsdage ad vejene.</span></header>
+<ol class="steps" id="steps"><li data-s="1" class="on">1 · Vælg fil</li><li data-s="3">2 · Adresser og dage</li><li data-s="5">3 · Færdig</li></ol>
+
+<section class="card" id="s1">
+  <div class="drop" id="drop" tabindex="0" role="button" aria-label="Vælg Excel-fil"><strong>Træk Excel-filen herind</strong><span>eller klik her for at vælge den</span></div>
+  <input type="file" id="file" accept=".xlsx,.xlsm,.csv,.txt" hidden>
+  <div id="s1err"></div>
+  <details class="more setbox" id="setBox"><summary><span id="setSum"></span> · <u>Ret</u></summary>
+    <div class="grid" style="margin-top:12px">
+      <label class="f" for="optHome">Hjemadresse<input type="text" id="optHome" placeholder="fx Torvet, 6700 Esbjerg"><small>Hver dag starter og slutter her.</small></label>
+      <label class="f" for="optHours">Timer pr. arbejdsdag<input type="number" id="optHours" min="1" max="16" step="0.5"><small>Kørsel + arbejde. En dag bliver aldrig længere end dette, hvis det kan undgås.</small></label>
+      <label class="f" for="optMin">Minutter pr. hus<input type="number" id="optMin" min="0" max="240"><small>Den tid du bruger ved hvert hus.</small></label>
+      <label class="f" for="optGoal">Planlæg efter<select id="optGoal"><option value="km">Færrest kilometer</option><option value="tid">Kortest køretid</option></select><small>Begge regnes ad vejene. Færrest km sparer brændstof.</small></label>
+      <label class="f" for="optPhone">Link til telefonsiden<input type="text" id="optPhone" placeholder="https://claude.ai/artifact/…"><small>Giver en knap direkte til telefonsiden, når ruten er klar.</small></label>
+      <label class="f" for="optMail">Din e-mail til kortopslag (valgfri)<input type="email" id="optMail" placeholder="navn@eksempel.dk"><small>OpenStreetMap beder om en kontakt ved mange opslag.</small></label>
+    </div>
+  </details>
+</section>
+
+<section class="card" id="s2" hidden>
+  <h2>Jeg er ikke sikker på, hvor adresserne står</h2>
+  <p class="lead" id="s2lead"></p>
+  <div id="sheets"></div>
+  <div class="row end" style="margin-top:16px"><button id="back1">Vælg en anden fil</button><button class="primary" id="go2">Fortsæt</button></div>
+</section>
+
+<section class="card" id="s3" hidden>
+  <h2 id="s3title">Finder adresserne på kortet …</h2>
+  <p class="lead" id="s3lead">Lad vinduet være åbent.</p>
+  <div class="bar"><i id="bar"></i></div>
+  <div class="row"><span id="prog" class="mono"></span><span class="spacer"></span><button id="fix" class="small">Ret kolonner</button><button id="stop" class="small">Stop</button></div>
+  <div class="log" id="log"></div>
+</section>
+
+<section class="card" id="s4" hidden>
+  <h2 id="s4title">Nogle adresser er usikre</h2>
+  <p class="lead" id="s4lead"></p>
+  <div class="row" style="margin-bottom:6px"><button class="primary" id="go4top">Fortsæt uden at rette</button></div>
+  <div id="issues"></div>
+  <div class="row end" style="margin-top:16px"><button class="primary" id="go4">Fortsæt</button></div>
+</section>
+
+<section class="card" id="s5" hidden>
+  <h2>Dagene er planlagt</h2>
+  <p class="lead" id="s5lead"></p>
+  <div id="s5notes"></div>
+  <div class="tiles" id="tiles"></div>
+  <div class="next">
+    <div class="nstep"><span class="stepnum">1</span><div><b>Hent ruteplanen</b><button class="primary big" id="dlx">Hent ruteplan (Excel)</button></div></div>
+    <div class="nstep"><span class="stepnum">2</span><div><b>Læg den ind på telefonsiden</b><p class="muted" style="margin:2px 0 8px">Åbn telefonsiden, tryk "For planlæggeren" nederst, og vælg filen du lige hentede.</p><a class="btnlink" id="openPhone" target="_blank" rel="noopener" hidden>Åbn telefonsiden</a></div></div>
+  </div>
+  <div id="map" role="img" aria-label="Kort over dagene"></div>
+  <div class="tablewrap"><table id="blocks"></table></div>
+  <details class="more" style="margin-top:16px"><summary>Flere muligheder</summary>
+    <div class="row" style="margin:12px 0"><button id="dlc">Hent CSV til Google My Maps</button></div>
+  </details>
+  <div class="row" style="margin-top:16px"><button id="restart">Lav en ny rute</button></div>
+</section>
+<footer>Ruteplanlægger 2.0 · oktober 2026. Kortdata © OpenStreetMap-bidragydere. Adresseopslag: Nominatim og Photon. Køretider og km ad vejene: OSRM. Køretider er estimater uden trafik og færge-ventetid. Excel-filen bliver på din computer.</footer>
+</div>
+<script src="vendor/jszip.min.js"></script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="solver.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
