@@ -3,7 +3,7 @@
    Læser Excel/CSV, finder adresser (Nominatim/Photon), henter køretider og km ad vejene (OSRM),
    fordeler husene på arbejdsdage fra hjemadressen (solver.js – færrest km eller kortest tid),
    og skriver Excel-ruteplan + CSV. Ingen fugleflugt i planlægningen. */
-const VERSION = '2.0.2';
+const VERSION = '2.0.3';
 const $ = s => document.querySelector(s);
 const el = (t, a = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(a)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids) if (c != null) e.append(c); return e; };
 const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
@@ -406,7 +406,7 @@ async function planDays() {
   const M = await roadMatrix(pts, (k, n) => prog(`Henter køretider og km ad vejene … ${k} af ${n}`, 0.04 + 0.36 * k / n));
   if (M.est) S.routeNote += `${M.est} af ${pts.length * (pts.length - 1)} afstande kunne ikke hentes fra ruteserveren og er anslået. `;
   // 2) fordel på dage
-  const timeMs = Math.round(Math.min(20000, Math.max(3000, 2000 + items.length * 80))); // forbedringen flader ud efter få sekunder (målt: 176 huse er færdige efter ca. 5 sek.)
+  const timeMs = Math.round(Math.min(8000, Math.max(3000, 2000 + items.length * 40))); // forbedringen flader ud efter få sekunder (målt: 176 huse er færdige efter ca. 5 sek.)
   const tStart = Date.now();
   const tick = setInterval(() => { const f = Math.min(1, (Date.now() - tStart) / timeMs); prog(`Fordeler ${items.length} huse på dage (${goalTxt()}) … ca. ${Math.max(1, Math.ceil((timeMs - (Date.now() - tStart)) / 1000))} sek.`, 0.4 + 0.45 * f); }, 400);
   let res;
