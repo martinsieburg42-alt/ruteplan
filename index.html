@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="app.css?v=2.0.8">
+<link rel="stylesheet" href="app.css?v=2.1">
 </head>
 <body>
 <div class="wrap">
@@ -26,7 +26,8 @@
   <details class="more setbox" id="setBox"><summary><span id="setSum"></span> · <u>Ret</u></summary>
     <div class="grid" style="margin-top:12px">
       <label class="f" for="optHome">Hjemadresse<input type="text" id="optHome" placeholder="fx Torvet, 6700 Esbjerg"><small>Hver dag starter og slutter her.</small></label>
-      <label class="f" for="optHours">Timer pr. arbejdsdag<input type="number" id="optHours" min="1" max="16" step="0.5"><small>Kørsel + arbejde. En dag bliver aldrig længere end dette, hvis det kan undgås.</small></label>
+      <label class="f" for="optStops">Huse pr. dag (valgfri)<input type="number" id="optStops" min="1" max="100" step="1" placeholder="fx 18"><small>Udfyldt: hver dag får højst så mange huse, og timerne er kun vejledende. Tom: dagene planlægges efter timer.</small></label>
+      <label class="f" for="optHours">Timer pr. arbejdsdag<input type="number" id="optHours" min="1" max="16" step="0.5"><small>Kørsel + arbejde. Bruges som grænse, når "Huse pr. dag" er tom.</small></label>
       <label class="f" for="optMin">Minutter pr. hus<input type="number" id="optMin" min="0" max="240"><small>Den tid du bruger ved hvert hus.</small></label>
       <label class="f" for="optGoal">Planlæg efter<select id="optGoal"><option value="km">Færrest kilometer</option><option value="tid">Kortest køretid</option></select><small>Begge regnes ad vejene. Færrest km sparer brændstof.</small></label>
       <label class="f" for="optPhone">Link til telefonsiden<input type="text" id="optPhone" placeholder="https://claude.ai/artifact/…"><small>Giver en knap direkte til telefonsiden, når ruten er klar.</small></label>
@@ -74,11 +75,11 @@
   </details>
   <div class="row" style="margin-top:16px"><button id="restart">Lav en ny rute</button></div>
 </section>
-<footer>Ruteplanlægger 2.0.8 · oktober 2026. Kortdata © OpenStreetMap-bidragydere. Adresseopslag: Nominatim og Photon. Køretider og km ad vejene: OSRM. Køretider er estimater uden trafik og færge-ventetid. Excel-filen bliver på din computer.</footer>
+<footer>Ruteplanlægger 2.1 · oktober 2026. Kortdata © OpenStreetMap-bidragydere. Adresseopslag: Nominatim og Photon. Køretider og km ad vejene: OSRM. Køretider er estimater uden trafik og færge-ventetid. Excel-filen bliver på din computer.</footer>
 </div>
 <script src="vendor/jszip.min.js"></script>
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="solver.js?v=2.0.8"></script>
-<script src="app.js?v=2.0.8"></script>
+<script src="solver.js?v=2.1"></script>
+<script src="app.js?v=2.1"></script>
 </body>
 </html>

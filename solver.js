@@ -1,15 +1,17 @@
 /* Ruteoptimering: daglige ture fra ét depot (indeks 0) med tidsgrænse pr. dag.
    D = n×n "pris" ad vejnettet: meter (færrest km) eller sekunder (kortest tid).
    opt.time = n×n køretider i sekunder (bruges altid til 8-timers-grænsen; standard = D).
-   service = sek. pr. hus, limit = sek. pr. dag.
+   softLimit/softWeight = blød tidsgrænse (bruges når antal huse styrer), service = sek. pr. hus, limit = sek. pr. dag (Infinity = ingen), maxStops = højst antal huse pr. dag (valgfri).
    Metode: Clarke–Wright savings (flere λ) → lokal søgning (2-opt, Or-opt, flyt, byt, 2-opt*, fjern dag)
    → ruin & recreate med fast frø. Mål: mindst mulig samlet pris (km eller tid). */
 function solveVRP(D, opt) {
-  const n = D.length, S = opt.service, L = opt.limit, seed0 = opt.seed || 7, T = opt.time || D;
+  const n = D.length, S = opt.service, L = opt.limit == null ? Infinity : opt.limit, maxStops = opt.maxStops || Infinity, seed0 = opt.seed || 7, T = opt.time || D;
   const sumM = (M, r) => { if (!r.length) return 0; let t = M[0][r[0]]; for (let k = 1; k < r.length; k++) t += M[r[k - 1]][r[k]]; return t + M[r[r.length - 1]][0]; };
-  const drive = r => sumM(D, r);
   const dur = r => sumM(T, r) + S * r.length;
-  const ok = r => dur(r) <= L + 1e-6;
+  // blød grænse: tid over softLimit tæller med som en straf (softWeight pr. sekund), så lange dage undgås, når det kan betale sig
+  const SL = opt.softLimit || Infinity, SW = opt.softWeight || 0;
+  const drive = SW ? r => sumM(D, r) + SW * Math.max(0, dur(r) - SL) : r => sumM(D, r);
+  const ok = r => r.length <= maxStops && dur(r) <= L + 1e-6; // højst maxStops huse og højst L sekunder pr. dag
   const total = rs => rs.reduce((s, r) => s + drive(r), 0);
   const clone = rs => rs.map(r => r.slice());
   let rnd = seed0; const rand = () => (rnd = (rnd * 1103515245 + 12345) % 2147483648) / 2147483648;

@@ -3,7 +3,7 @@
    Læser Excel/CSV, finder adresser (Nominatim/Photon), henter køretider og km ad vejene (OSRM),
    fordeler husene på arbejdsdage fra hjemadressen (solver.js – færrest km eller kortest tid),
    og skriver Excel-ruteplan + CSV. Ingen fugleflugt i planlægningen. */
-const VERSION = '2.0.8';
+const VERSION = '2.1';
 const $ = s => document.querySelector(s);
 const el = (t, a = {}, ...kids) => { const e = document.createElement(t); for (const [k, v] of Object.entries(a)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? '' : v); } for (const c of kids) if (c != null) e.append(c); return e; };
 const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
@@ -24,21 +24,23 @@ const PREC = { h: ['Præcis', 'ok'], n: ['Andet bogstav', 'warn'], s: ['Kun veje
 const S = { file: null, sheets: [], items: [], info: [], removed: [], skipped: [], blocks: [], order: [], legs: [], stop: false, startPt: null, routeNote: '' };
 const DEF_PHONE = 'https://claude.ai/artifact/3yXMzN42nxJo89gErGtswe';
 const oldSet = LS.get('rp-settings', {});
-const settings = Object.assign({ min: 15, home: 'Torvet, 6700 Esbjerg', hours: 8, goal: 'km', mail: '', phone: DEF_PHONE }, oldSet);
+const settings = Object.assign({ min: 15, home: 'Torvet, 6700 Esbjerg', hours: 8, stops: '', goal: 'km', mail: '', phone: DEF_PHONE }, oldSet);
 if (oldSet.start && !oldSet.home) settings.home = oldSet.start;
 if (!settings.phone) settings.phone = DEF_PHONE;
 const t1 = v => (+v).toLocaleString('da-DK', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const t0d = v => Math.round(+v).toLocaleString('da-DK');
 const fmtH = h => String(h).replace('.', ',');
 const goalTxt = () => settings.goal === 'km' ? 'færrest km' : 'kortest køretid';
-const SET_IDS = { optHome: 'home', optHours: 'hours', optMin: 'min', optGoal: 'goal', optPhone: 'phone', optMail: 'mail' };
+const SET_IDS = { optHome: 'home', optStops: 'stops', optHours: 'hours', optMin: 'min', optGoal: 'goal', optPhone: 'phone', optMail: 'mail' };
+const byStops = () => +settings.stops > 0; // planlæg efter antal huse pr. dag – timerne er så kun vejledende
+const limitTxt = () => byStops() ? `højst ${settings.stops} huse pr. dag (timerne er vejledende)` : `højst ${fmtH(settings.hours)} timer pr. dag`;
 function showSettings() {
   for (const [id, k] of Object.entries(SET_IDS)) $('#' + id).value = settings[k];
-  $('#setSum').textContent = `Start og slut hver dag: ${settings.home || '(ikke sat)'} · ${fmtH(settings.hours)} timer pr. dag · ${settings.min} min pr. hus · ${goalTxt()}`;
+  $('#setSum').textContent = `Start og slut hver dag: ${settings.home || '(ikke sat)'} · ${byStops() ? settings.stops + ' huse pr. dag' : fmtH(settings.hours) + ' timer pr. dag'} · ${settings.min} min pr. hus · ${goalTxt()}`;
 }
 for (const [id, k] of Object.entries(SET_IDS)) $('#' + id).addEventListener('change', () => {
   const v = String($('#' + id).value).trim();
-  settings[k] = (k === 'min' || k === 'hours') ? Math.max(0, +v.replace(',', '.') || 0) : v;
+  settings[k] = (k === 'min' || k === 'hours') ? Math.max(0, +v.replace(',', '.') || 0) : k === 'stops' ? (Math.round(+v) > 0 ? String(Math.round(+v)) : '') : v;
   if (k === 'hours' && settings.hours < 1) settings.hours = 8;
   if (k === 'phone' && !settings.phone) settings.phone = DEF_PHONE;
   LS.set('rp-settings', settings); showSettings();
@@ -410,7 +412,7 @@ async function planDays() {
   const tStart = Date.now();
   const tick = setInterval(() => { const f = Math.min(1, (Date.now() - tStart) / timeMs); prog(`Fordeler ${items.length} huse på dage (${goalTxt()}) … ca. ${Math.max(1, Math.ceil((timeMs - (Date.now() - tStart)) / 1000))} sek.`, 0.4 + 0.45 * f); }, 400);
   let res;
-  try { res = await runSolver(settings.goal === 'km' ? M.dist : M.dur, M.dur, { service: settings.min * 60, limit: settings.hours * 3600, timeMs, maxIter: 1e6, seed: 7 }); }
+  try { res = await runSolver(settings.goal === 'km' ? M.dist : M.dur, M.dur, { service: settings.min * 60, limit: byStops() ? null : settings.hours * 3600, maxStops: byStops() ? +settings.stops : null, softLimit: byStops() ? settings.hours * 3600 : null, softWeight: byStops() ? (settings.goal === 'km' ? 8 : 2) : 0, timeMs, maxIter: 1e6, seed: 7 }); }
   finally { clearInterval(tick); }
   S.solverLog = res.log;
   // 3) dagene i rækkefølge nord → syd, og hver dags vej hentes for at få kort og præcise etaper
@@ -462,11 +464,11 @@ function renderResult() {
   const D = S.days, n = S.order.length;
   const kmAll = D.reduce((s, d) => s + d.km, 0), drive = D.reduce((s, d) => s + d.drive, 0), work = n * settings.min;
   const excl = S.items.filter(x => x.excluded || x.acc === 'x').length;
-  $('#s5lead').textContent = `${n} huse fordelt på ${D.length} arbejdsdage. Hver dag starter og slutter ved ${settings.home}. Planlagt efter ${goalTxt()} ad vejene, højst ${fmtH(settings.hours)} timer pr. dag.` + (excl ? ` ${excl} er ikke med (udeladt eller ikke fundet).` : '');
+  $('#s5lead').textContent = `${n} huse fordelt på ${D.length} arbejdsdage. Hver dag starter og slutter ved ${settings.home}. Planlagt efter ${goalTxt()} ad vejene, ${limitTxt()}.` + (excl ? ` ${excl} er ikke med (udeladt eller ikke fundet).` : '');
   const notes = $('#s5notes'); notes.innerHTML = '';
   if (S.routeNote) notes.append(el('div', { class: 'note', text: S.routeNote.trim() }));
   const over = D.filter(d => d.over);
-  if (over.length) notes.append(el('div', { class: 'note', text: `OBS: ${over.map(d => 'dag ' + d.n).join(', ')} bliver længere end ${fmtH(settings.hours)} timer, fordi husene ligger langt væk.` }));
+  if (over.length) notes.append(el('div', { class: 'note', text: byStops() ? `Til orientering: ${over.map(d => 'dag ' + d.n).join(', ')} bliver længere end ${fmtH(settings.hours)} timer med ${settings.stops} huse.` : `OBS: ${over.map(d => 'dag ' + d.n).join(', ')} bliver længere end ${fmtH(settings.hours)} timer, fordi husene ligger langt væk.` }));
   const tile = (k, v) => el('div', { class: 'tile' }, el('div', { class: 'k', text: k }), el('div', { class: 'v', text: v }));
   $('#tiles').replaceChildren(tile('Huse', n), tile('Dage', D.length), tile('Km i alt', t0d(kmAll)), tile('Køretid', t1(drive / 60) + ' t'), tile(`Arbejde (${settings.min} min/hus)`, t1(work / 60) + ' t'), tile('Længste dag', t1(Math.max(...D.map(d => d.total)) / 60) + ' t'));
   const tb = $('#blocks'); tb.innerHTML = '';
@@ -578,7 +580,7 @@ function buildExcel() {
   const ov = new Sheet('Oversigt'); const base = st.get({}); const bold = st.get({ b: 1 });
   ov.cols = [7, 44, 8, 40, 12, 10, 11, 10, 8, 9];
   ov.set(0, 0, 'Ruteplan – ' + (S.info[0] || S.file), st.get({ b: 1, sz: 14, color: T }));
-  ov.set(1, 0, `${ord.length} ejendomme fordelt på ${D.length} arbejdsdage. Hver dag starter og slutter ved hjemadressen. Planlagt efter ${goalTxt()} ad vejene, højst ${fmtH(settings.hours)} timer pr. dag (kørsel + arbejde).`, st.get({ i: 1 }));
+  ov.set(1, 0, `${ord.length} ejendomme fordelt på ${D.length} arbejdsdage. Hver dag starter og slutter ved hjemadressen. Planlagt efter ${goalTxt()} ad vejene, ${byStops() ? limitTxt() : limitTxt() + ' (kørsel + arbejde)'}.`, st.get({ i: 1 }));
   ov.set(3, 1, 'Minutter arbejde pr. hus:', st.get({ b: 1, h: 'right' })); ov.set(3, 2, settings.min, st.get({ b: 1, color: '0000FF', fill: 'FFFF00' })); ov.set(3, 3, '← ret selv (bruges til tidsestimatet)', st.get({ i: 1, sz: 9, color: '666666' }));
   ov.set(4, 1, 'Hjemadresse:', st.get({ b: 1, h: 'right' })); ov.set(4, 2, settings.home, base);
   const r0 = 6; ['Dag', 'Områder', 'Huse', 'Postnumre', 'Km (inkl. til og fra hjem)', 'Køretid (min)', 'Arbejdstid (min)', 'I alt (timer)', 'Udført', 'Mangler'].forEach((c, j) => ov.set(r0, j, c, H)); ov.heights[r0] = 30;
@@ -610,7 +612,7 @@ function buildExcel() {
   const bm = new Sheet('Bemærkninger'); bm.cols = [24, 110]; let br = 0; const h2 = st.get({ b: 1, sz: 12, color: T }), lb = st.get({ b: 1, v: 'top' }), tx = st.get({ wrap: 1, v: 'top' });
   bm.set(br++, 0, 'Ændringer og ting at tjekke', h2);
   if (S.routeNote) { bm.set(br, 0, 'Ruteberegning', lb); bm.set(br++, 1, S.routeNote.trim(), tx); }
-  for (const d of D.filter(d => d.over)) { bm.set(br, 0, `Dag ${d.n}`, lb); bm.set(br++, 1, `Dagen tager ca. ${t1(d.total / 60)} timer – mere end ${fmtH(settings.hours)} timer, fordi husene ligger langt væk.`, tx); }
+  for (const d of D.filter(d => d.over)) { bm.set(br, 0, `Dag ${d.n}`, lb); bm.set(br++, 1, byStops() ? `Dagen tager ca. ${t1(d.total / 60)} timer (mere end ${fmtH(settings.hours)} timer).` : `Dagen tager ca. ${t1(d.total / 60)} timer – mere end ${fmtH(settings.hours)} timer, fordi husene ligger langt væk.`, tx); }
   for (const s of S.removed) { bm.set(br, 0, 'Dublet fjernet', lb); bm.set(br++, 1, s, tx); }
   for (const x of ord) { const fl = x.flags.filter(f => f.startsWith('OBS') || f.startsWith('Stavet')); if (fl.length) { bm.set(br, 0, `Stop ${x.stop} (dag ${x.day.slice(1)})`, lb); bm.set(br++, 1, `${x.raw} → ${x.fuld}: ${fl.join(' · ')}${x.approved ? ' (godkendt)' : ''}`, tx); } }
   for (const x of S.items.filter(x => x.excluded || x.acc === 'x')) { bm.set(br, 0, x.acc === 'x' ? 'Ikke fundet' : 'Udeladt', lb); bm.set(br++, 1, `${x.sheet} r${x.row}: ${x.raw}${x.id ? ' (' + x.id + ')' : ''} – ikke med i ruten`, tx); }
@@ -620,7 +622,7 @@ function buildExcel() {
   [['Oversigt', 'Én række pr. arbejdsdag med km, køretid og arbejdstid. Ret minutter pr. hus i den gule celle, så regnes tiderne om.'],
    ['Ruteplan', 'Alle huse i kørselsrækkefølge. Ved dagens første hus er km og minutter fra hjemadressen. Filtrér på Dag. "Kør hertil" åbner navigation i Google Maps eller Apple Maps. Skriv x i "Udført", så tæller Oversigt med.'],
    ['Google Maps pr. dag', 'Én klikbar rute pr. del af dagen (højst 10 punkter pr. Google-rute).'],
-   ['Metode', `Alle køretider og km er hentet ad vejene (OSRM). Husene er fordelt på dage, så den samlede ${settings.goal === 'km' ? 'kørsel i km' : 'køretid'} bliver så lille som muligt, uden at en dag (kørsel + ${settings.min} min pr. hus) overstiger ${fmtH(settings.hours)} timer. Rækkefølgen inden for hver dag er optimeret på samme måde.`]].forEach(([a, b]) => { bm.set(br, 0, a, lb); bm.set(br++, 1, b, tx); });
+   ['Metode', `Alle køretider og km er hentet ad vejene (OSRM). Husene er fordelt på dage, så den samlede ${settings.goal === 'km' ? 'kørsel i km' : 'køretid'} bliver så lille som muligt, ${byStops() ? `med højst ${settings.stops} huse pr. dag. Timerne (kørsel + ${settings.min} min pr. hus) er kun vist til orientering.` : `uden at en dag (kørsel + ${settings.min} min pr. hus) overstiger ${fmtH(settings.hours)} timer.`} Rækkefølgen inden for hver dag er optimeret på samme måde.`]].forEach(([a, b]) => { bm.set(br, 0, a, lb); bm.set(br++, 1, b, tx); });
   const defined = `<definedName name="_xlnm._FilterDatabase" localSheetId="2" hidden="1">Ruteplan!$A$1:$${colName(cols.length - 1)}$${N}</definedName>`;
   return workbookBlob([ov, gm, rp, bm], st, defined);
 }
