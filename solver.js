@@ -4,7 +4,7 @@
    softLimit/softWeight = blød tidsgrænse (bruges når antal huse styrer), service = sek. pr. hus, limit = sek. pr. dag (Infinity = ingen), maxStops = højst antal huse pr. dag (valgfri).
    Metode: Clarke–Wright savings (flere λ) → lokal søgning (2-opt, Or-opt, flyt, byt, 2-opt*, fjern dag)
    → ruin & recreate med fast frø. Mål: mindst mulig samlet pris (km eller tid). */
-function solveVRP(D, opt) {
+function createSolver(D, opt) {
   const n = D.length, S = opt.service, L = opt.limit == null ? Infinity : opt.limit, maxStops = opt.maxStops || Infinity, seed0 = opt.seed || 7, T = opt.time || D;
   const sumM = (M, r) => { if (!r.length) return 0; let t = M[0][r[0]]; for (let k = 1; k < r.length; k++) t += M[r[k - 1]][r[k]]; return t + M[r[r.length - 1]][0]; };
   const dur = r => sumM(T, r) + S * r.length;
@@ -83,20 +83,45 @@ function solveVRP(D, opt) {
       if (bi < 0) t.push([c]); else t[bi].splice(bp, 0, c); }
     return local(t);
   }
-  const t0 = Date.now(); const log = [];
-  let best = null;
-  for (const lam of opt.lambdas || [0.6, 0.8, 1.0, 1.2, 1.4]) { const s = local(repair(savings(lam))); log.push(['savings λ=' + lam, total(s), s.length]); if (!best || total(s) < total(best)) best = s; }
-  const startBest = total(best);
-  let cur = clone(best), iters = 0;
-  while (Date.now() - t0 < (opt.timeMs || 20000) && iters < (opt.maxIter || 400)) { iters++;
-    const cand = ruinRecreate(cur, 0.08 + rand() * 0.12);
-    if (total(cand) < total(cur) - 1e-6) { cur = cand; if (total(cur) < total(best)) best = clone(cur); }
-    else if (rand() < 0.05) cur = clone(best);
-    if (opt.onProgress && iters % 5 === 0) opt.onProgress(iters, total(best), Date.now() - t0); }
-  log.push(['ruin&recreate', total(best), best.length, iters]);
-  if (best.some(r => r.length > 1 && !ok(r))) best = local(repair(best));
-  const tooLong = []; for (const r of best) if (!ok(r)) { if (r.length > 1) throw new Error('infeasible'); tooLong.push(r[0]); } // et enkelt hus, der alene er over grænsen, får sin egen dag
-  const seen = new Set(best.flat()); if (seen.size !== n - 1) throw new Error('missing');
-  return { routes: best, tooLong, drive: total(best), days: best.length, startBest, log, ms: Date.now() - t0, drive_of: drive, dur_of: dur };
+  // Arbejdet deles i små skridt, så siden kan opdatere sig og ikke fryser (ingen baggrundstråd nødvendig).
+  const lambdas = opt.lambdas || [0.6, 0.8, 1.0, 1.2, 1.4], timeMs = opt.timeMs || 20000, maxIter = opt.maxIter || 400;
+  let t0 = 0; const log = [];
+  let best = null, cur = null, iters = 0, startBest = 0, li = 0;
+  return {
+    // trin 1: én startløsning pr. λ; returnerer true, så længe der er flere
+    initStep() {
+      if (!t0) t0 = Date.now();
+      const lam = lambdas[li++]; const s = local(repair(savings(lam)));
+      log.push(['savings λ=' + lam, total(s), s.length]); if (!best || total(s) < total(best)) best = s;
+      if (li >= lambdas.length) { startBest = total(best); cur = clone(best); return false; }
+      return true;
+    },
+    // trin 2: forbedr i højst ms millisekunder; returnerer true, hvis der er tid tilbage
+    run(ms) {
+      const end = Date.now() + ms;
+      while (Date.now() < end && Date.now() - t0 < timeMs && iters < maxIter) { iters++;
+        const cand = ruinRecreate(cur, 0.08 + rand() * 0.12);
+        if (total(cand) < total(cur) - 1e-6) { cur = cand; if (total(cur) < total(best)) best = clone(cur); }
+        else if (rand() < 0.05) cur = clone(best);
+        if (opt.onProgress && iters % 5 === 0) opt.onProgress(iters, total(best), Date.now() - t0); }
+      return Date.now() - t0 < timeMs && iters < maxIter;
+    },
+    finish() {
+      log.push(['ruin&recreate', total(best), best.length, iters]);
+      if (best.some(r => r.length > 1 && !ok(r))) best = local(repair(best));
+      const tooLong = []; for (const r of best) if (!ok(r)) { if (r.length > 1) throw new Error('infeasible'); tooLong.push(r[0]); } // et enkelt hus, der alene er over grænsen, får sin egen dag
+      const seen = new Set(best.flat()); if (seen.size !== n - 1) throw new Error('missing');
+      return { routes: best, tooLong, drive: total(best), days: best.length, startBest, log, ms: Date.now() - t0, drive_of: drive, dur_of: dur };
+    },
+    elapsed() { return t0 ? Date.now() - t0 : 0; }
+  };
 }
-if (typeof module !== 'undefined') module.exports = { solveVRP };
+function solveVRP(D, opt) { const s = createSolver(D, opt); while (s.initStep()); s.run(opt.timeMs || 20000); return s.finish(); }
+// Samme beregning i små bidder med pauser imellem, så browseren kan tegne og reagere undervejs.
+async function solveVRPAsync(D, opt, onTick) {
+  const s = createSolver(D, opt); const pause = () => new Promise(r => setTimeout(r, 0));
+  await pause(); while (s.initStep()) { onTick && onTick(s.elapsed()); await pause(); }
+  while (s.run(50)) { onTick && onTick(s.elapsed()); await pause(); }
+  return s.finish();
+}
+if (typeof module !== 'undefined') module.exports = { solveVRP, solveVRPAsync };

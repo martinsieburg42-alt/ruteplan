@@ -25,7 +25,7 @@ Under **Indstillinger** på forsiden kan du ændre hjemadresse, timer pr. dag, m
 |---|---|
 | `index.html` | Siden |
 | `app.js` | Indlæsning af Excel/CSV, adresseopslag, planlægning, kort, Excel-output |
-| `solver.js` | Optimering af dage (bruges også af `solver-worker.js` i baggrunden) |
+| `solver.js` | Optimering af dage (regnes i små bidder, så siden ikke fryser) |
 | `app.css` | Udseende |
 | `vendor/jszip.min.js` | JSZip 3.10.1 (MIT) til at læse og skrive Excel |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Gør siden installerbar som app |
